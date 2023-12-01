@@ -1,40 +1,26 @@
-import altair as alt
-import numpy as np
-import pandas as pd
 import streamlit as st
+import cv2
+import torch
 
-"""
-# Welcome to Streamlit!
+# Load YOLOv8 model
+@st.cache(allow_output_mutation=True)
+def load_model():
+    model = torch.hub.load('yolo-model', 'model', pretrained=True)
+    return model
 
-Edit `/streamlit_app.py` to customize this app to your heart's desire :heart:.
-If you have any questions, checkout our [documentation](https://docs.streamlit.io) and [community
-forums](https://discuss.streamlit.io).
+model = load_model()
 
-In the meantime, below is an example of what you can do with just a few lines of code:
-"""
+# Streamlit app
+st.title("YOLOv8 Object Detection")
 
-num_points = st.slider("Number of points in spiral", 1, 10000, 1100)
-num_turns = st.slider("Number of turns in spiral", 1, 300, 31)
+uploaded_file = st.file_uploader("Choose an image...", type="jpg")
 
-indices = np.linspace(0, 1, num_points)
-theta = 2 * np.pi * num_turns * indices
-radius = indices
+if uploaded_file is not None:
+    image = cv2.imread(uploaded_file.name)[:, :, ::-1]  # BGR to RGB
+    results = model(image)
+    
+    # Display results
+    st.image(image, caption="Uploaded Image", use_column_width=True)
+    st.write("Detected Objects:")
+    st.json(results.xyxy[0].numpy().tolist())
 
-x = radius * np.cos(theta)
-y = radius * np.sin(theta)
-
-df = pd.DataFrame({
-    "x": x,
-    "y": y,
-    "idx": indices,
-    "rand": np.random.randn(num_points),
-})
-
-st.altair_chart(alt.Chart(df, height=700, width=700)
-    .mark_point(filled=True)
-    .encode(
-        x=alt.X("x", axis=None),
-        y=alt.Y("y", axis=None),
-        color=alt.Color("idx", legend=None, scale=alt.Scale()),
-        size=alt.Size("rand", legend=None, scale=alt.Scale(range=[1, 150])),
-    ))
